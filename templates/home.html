@@ -1,0 +1,151 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="msapplication-TileImage" content="{% static 'img/logo.jpeg' %}">
+    <meta name="msapplication-TileColor" content="#ae8160">
+    <meta name="application-name" content="MERL">
+
+    <meta property="og:title" content="RV Code Hub">
+    <meta property="og:description" content="RISC-V and Hardware Design Coding Hub">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://rvcodehub.merledupk.org">
+    <meta property="og:image" content= "{% static 'img/logo.jpeg' %}"/>
+    <meta property='og:image:height' content='800' />
+    <meta property='og:image:width' content='2200' />
+
+    <link rel="shortcut icon" sizes="16x16 24x24 32x32 48x48" href="{% static 'img/logo.jpeg' %}">
+    <link rel="icon" type="image/png" sizes="16x16 32x32" href="{% static 'img/logo.jpeg' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/logo.jpeg' %}">
+
+    <title> RV CODE HUB </title>
+    <link href="{% static 'bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body {
+            background: #f8f9fa;
+            color: #343a40;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            flex: 1;
+        }
+        .containerr {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin: 0px 15%;
+        }
+        h1 {
+            color: #343a40;
+            font-weight: bold;
+        }
+        .list-group-item {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            color: #343a40;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .list-group-item:hover {
+            background-color: #e9ecef;
+            transform: scale(1.05);
+            cursor: pointer;
+        }
+        footer {
+            background-color: #343a40;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: auto;
+        }
+        .beta-banner {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #ffffff;
+            text-align: center;
+            padding: 10px 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+        .beta-banner a {
+            color: #ffcc00;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="beta-banner">
+        This app is in Beta Stage. If you face any issues or bugs, please report them <a href="{% url 'pages:bug_report' %}">here</a>.
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="containerr mt-5">
+        <h5>Hello, {{ user.username }} <span style="font-size: 14px;"> <i> <a href="{% url 'user_panel:mylogout' %}"> logout </a> </i> </span> </h5>
+    </div>
+    {% endif %}
+
+    <div class="containerr mt-5">
+        <h1 class="text-center mb-4">Upcoming Coding Challenges</h1>
+        <ul class="list-group">
+            {% for category in question_groups %}
+                <li data-url="{% url 'questions:q_group' group_id=category.id %}" class="list-group-item">{{ category }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <footer>
+        <p>Developed by Micro Electronics Research Lab</p>
+        <a href="https://merledupk.org"><img src="{% static 'img/merllogo.png' %}" alt="MERL Logo" style="width: 100px; height: auto; margin-top: 10px;"> </a>
+    </footer>
+</body>
+</html>
+<div id="confirmationModal" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Coding Challenge</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>By clicking "Yes", you will commence the coding challenge. The allotted time for this challenge is 60 minutes, and you will not be able to pause or restart. Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+                <button type="button" class="btn btn-primary" id="confirmButton">Yes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.list-group-item').forEach(item => {
+        item.addEventListener('click', function(event) {
+            event.preventDefault();
+            const url = this.getAttribute('data-url');
+            $('#confirmationModal').modal('show');
+            document.getElementById('confirmButton').onclick = function() {
+                window.location.href = url;
+            };
+        });
+    });
+</script>
+
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>

@@ -1,0 +1,203 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Questions Group</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            background-color: #0288d1;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin: 0;
+        }
+        h2 {
+            background-color: #e0f7fa;
+            color: #0288d1;
+            padding: 10px;
+            border-bottom: 2px solid #0288d1;
+            margin: 0;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        li {
+            background-color: white;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        li:hover {
+            background-color: #f1f1f1;
+            cursor: pointer;
+        }
+        footer {
+            background-color: #343a40;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: auto;
+        }
+        .beta-banner {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #ffffff;
+            text-align: center;
+            padding: 10px 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+        .beta-banner a {
+            color: #ffcc00;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="beta-banner">
+        This app is in Beta Stage. If you face any issues or bugs, please report them <a href="{% url 'pages:bug_report' %}">here</a>.
+    </div>
+    <div class="container">
+        <h1>{{ group.name }}</h1>
+        <h3>Hello, {{ user.username }} <span style="font-size: 14px;"> <i> <a href="{% url 'user_panel:mylogout' %}"> logout </a> </i> </span> </h3>
+        <p>To generate the report for submission in LFX Mentorship portal click this button:</p>
+        <button onclick="window.location.href = '{% url 'questions:generate_report' group_id=group.id %}'" style="
+            background-color: #0288d1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        ">Generate Report</button>
+        {% for language in languages %}
+            <h2>{{ language }}</h2>
+            <ul>
+            {% for question in questions %}
+                {% if question.language == language %}
+
+                <li onclick="window.location.href = '{% url 'questions:question' question_id=question.id %}'">
+                    {{ forloop.counter }}. {{ question.title }}
+                    {% for submission in submissions %}
+                            {% if submission.question.id == question.id %}
+                                {% if submission.test_status %}
+                                    <img src="{% static 'img/green_tick.png' %}" alt="Passed" style="width: 20px; height: auto; float: right;">
+                                    <span style="color: green; float: right;">Passed</span>
+
+                                    {% else %}
+                                    <img src="{% static 'img/red_cross.png' %}" alt="Failed" style="width: 20px; height: auto; float: right;">
+
+                                    <span style="color: red; float: right;">Failed</span>
+                                {% endif %}
+                            {% endif %}
+                    {% endfor %}
+                </li>
+                {% endif %}
+            {% endfor %}
+            </ul>
+        {% endfor %}
+    </div>
+
+    <footer>
+        <p>Developed by Micro Electronics Research Lab</p>
+        <a href="https://merledupk.org"><img src="{% static 'img/merllogo.png' %}" alt="MERL Logo" style="width: 100px; height: auto; margin-top: 10px;"> </a>
+    </footer>
+
+    <div id="toast-container"></div>
+<style>
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.toast {
+    min-width: 250px;
+    margin-top: 10px;
+    padding: 15px 20px;
+    background-color: #333;
+    color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.hide {
+    opacity: 0;
+    transform: translateY(20px);
+}
+</style>
+</body>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function() {
+        // Disable copying on the entire document
+        document.addEventListener("copy", function(event) {
+            event.preventDefault();
+            showToast("Copying is not allowed on this page", "error");
+        });
+    });
+
+
+    function showToast(message, type = "info") {
+              const container = document.getElementById("toast-container");
+
+              // Create the toast element
+              const toast = document.createElement("div");
+              toast.classList.add("toast");
+              toast.classList.add(type); // Optional type styling (e.g., success, error)
+              toast.innerText = message;
+
+              // Add the toast to the container
+              container.appendChild(toast);
+
+              // Show the toast with the "show" class
+              setTimeout(() => {
+                  toast.classList.add("show");
+              }, 10);
+
+              // Hide the toast after 5 seconds
+              setTimeout(() => {
+                  toast.classList.remove("show");
+                  toast.classList.add("hide");
+                  // Remove the toast from DOM after the animation
+                  setTimeout(() => {
+                      toast.remove();
+                  }, 300);
+              }, 5000);
+          }
+
+
+</script>
+</html>

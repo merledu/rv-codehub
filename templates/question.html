@@ -1,0 +1,440 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding App</title>
+    
+
+
+    <style>
+        html {
+            position: relative;
+        }
+        html::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .pane {
+            flex: 1;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .left-pane {
+            background-color: #f4f4f4;
+            border-right: 1px solid #ddd;
+        }
+        .right-pane {
+            background-color: #fff;
+        }
+        .code-editor {
+            width: 100%;
+            height: 100%;
+            border: none;
+            resize: none;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        #output-box {
+            background-color: black;
+            background-image: radial-gradient(rgba(0, 150, 0, 0.75), black 120%);
+            max-height: 25vh;
+            height: 25vh;
+            min-height: 25vh;
+            margin: 0;
+            overflow: hidden;
+            padding: 2rem;
+            color: white;
+            font: 0.8rem Inconsolata, monospace;
+            text-shadow: 0 0 5px #C8C8C8;
+            border-radius: 5px;
+            overflow-x: scroll;
+            overflow-y: scroll;
+            }
+            /* #output-box::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+            } */
+
+            #output-box::selection {
+            background: #0080FF;
+            text-shadow: none;
+            }
+
+            #output-box pre {
+            margin: 0;
+            }
+            .process-div {
+                position: fixed; /* Use fixed positioning for full-screen overlay */
+                z-index: 1000; /* Ensure it appears above other elements */
+                top: 0; /* Cover from the top of the screen */
+                left: 0; /* Cover from the left of the screen */
+                background-color: rgba(255, 255, 255, 0.612); /* Semi-transparent overlay */
+                width: 100%; /* Full width of the screen */
+                height: 100%; /* Full height of the screen */
+                display: none;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden; /* Prevent scrolling inside the overlay */
+                pointer-events: auto; /* Allow interaction within the overlay */
+            }
+
+            .process-div div{
+                text-align: center;
+            }
+            .beta-banner {
+                background-color: rgba(0, 0, 0, 0.5);
+                color: #ffffff;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                width: 100%;
+                top: 0;
+                z-index: 1000;
+            }
+            .beta-banner a {
+                color: #ffcc00;
+                text-decoration: underline;
+            }
+    </style>
+</head>
+<body>
+    <div class="beta-banner">
+        This app is in Beta Stage. If you face any issues or bugs, please report them <a href="{% url 'pages:bug_report' %}">here</a>.
+    </div>
+    <div id="layover-box" class="process-div">
+        <div>
+          <h1>Your Task is in Queue</h1>
+          <h3 id="queue-id">Queue Position: None</h3>
+        </div>
+        
+    </div>
+    <div class="pane left-pane">
+        <h4>Coding Question</h4>
+        <h2>{{ question.title }}</h2>
+        <div style="display: inline-block; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9; margin-bottom: 20px;">
+            <p style="margin: 0; white-space: nowrap;"><strong>Language:</strong> <span style="font-style: italic; color: #007bff;">{{ question.language }}</span></p>
+        </div>
+        <p><pre><code>{{ question.question }}</code></pre></p>
+    </div>
+    <div class="pane right-pane">
+        <h2>Code Editor</h2>
+
+        {% if question.language.name == "RISCV" %}
+            <p style="font-family: monospace; font-size: 14px;">
+                VLEN = 128 bits <br> ELEN = 64 bits <br> RISCV ISA = RV32GCV <br> RISCV Vector Version = 1.0
+            </p>
+        {% endif %}
+        
+        
+        <textarea class="code-editor" placeholder="Write your code here...">{{ question.answer_template }}</textarea>
+        <br>
+        <button id="run-code">Run Code</button>
+        <br> <br>
+        <div id="test-status" style="display: none; padding: 10px; border-radius: 5px; margin-top: 10px;">
+            <strong>Test Status:</strong> <span id="status-message"></span>
+        </div>
+        <div class="col-md-12 bordered-box" id="output-box">
+            <pre><output id="output-drop">
+...Output will be displayed here...
+  
+            </output></pre>
+          </div>
+    </div>
+    <div id="toast-container"></div>
+<style>
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.toast {
+    min-width: 250px;
+    margin-top: 10px;
+    padding: 15px 20px;
+    background-color: #333;
+    color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.hide {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+</style>
+</body>
+
+
+<script src="{% static 'codemirror/codemirror-5.65.0/lib/codemirror.js' %}"></script>
+<link rel="stylesheet" href="{% static 'codemirror/codemirror-5.65.0/theme/eclipse.css' %}">
+<link rel="stylesheet" href="{% static 'codemirror/codemirror-5.65.0/lib/codemirror.css' %}">
+<script src="{% static 'codemirror/codemirror-5.65.0/mode/clike/clike.js' %}"></script>
+<script src="{% static 'codemirror/codemirror-5.65.0/addon/display/autorefresh.js' %}"></script>
+<script src="{% static 'codemirror/codemirror-5.65.0/addon/edit/matchbrackets.js' %}"></script>
+
+<script>
+    
+
+    // document.addEventListener("DOMContentLoaded", function() {
+    //     var editor = CodeMirror.fromTextArea(document.querySelector(".code-editor"), {
+    //         lineNumbers: true,
+    //         mode: "text/x-scala",
+    //         theme: "eclipse",
+    //         matchBrackets: true,
+    //     });
+    // });
+
+    // Restrict pasting in the code editor
+    document.addEventListener("DOMContentLoaded", function() {
+        var editor = CodeMirror.fromTextArea(document.querySelector(".code-editor"), {
+            lineNumbers: true,
+            mode: "text/x-scala",
+            theme: "eclipse",
+            matchBrackets: true,
+        });
+
+        // Disable pasting in the CodeMirror editor
+        editor.on("paste", function(cm, event) {
+            event.preventDefault();
+            showToast("Pasting is not allowed in the code editor", "error");
+        });
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Disable copying on the entire document
+        document.addEventListener("copy", function(event) {
+            event.preventDefault();
+            showToast("Copying is not allowed on this page", "error");
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'PrintScreen') {
+                showToast("Screenshots are disabled!", "error");
+                event.preventDefault();
+            }
+            if (event.ctrlKey && event.key === 'p') {
+                showToast("Printing is disabled!", "error");
+                event.preventDefault();
+            }
+            if (event.ctrlKey && event.shiftKey && event.key === 'I') {
+                showToast("Inspect Element is disabled!", "error");
+                event.preventDefault();
+            }
+
+        });
+        document.addEventListener('contextmenu', function (event) {
+                event.preventDefault();
+                showToast("Right-click is disabled!", "error");
+            });
+            
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                alert("Tab switching is not allowed!");
+                window.location.reload(); // Optional: Force reload or disqualify the participant
+            }
+        });
+
+        document.addEventListener('blur', function(event) {
+            alert("Switching windows is not allowed!");
+            window.location.reload();
+            event.preventDefault();
+        });
+
+        function enterFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.mozRequestFullScreen) { // Firefox
+                elem.mozRequestFullScreen();
+            } else if (elem.webkitRequestFullscreen) { // Chrome, Safari, and Opera
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { // IE/Edge
+                elem.msRequestFullscreen();
+            }
+        }
+
+        function detectFullscreenExit() {
+            document.addEventListener("fullscreenchange", function () {
+                if (!document.fullscreenElement) {
+                    alert("Exiting fullscreen is not allowed!");
+                    enterFullscreen();
+                }
+            });
+        }
+
+        enterFullscreen();
+        detectFullscreenExit();
+
+        let lastActivity = Date.now();
+
+        document.addEventListener('mousemove', function () {
+            lastActivity = Date.now();
+        });
+
+        setInterval(function () {
+            if (Date.now() - lastActivity > 30000) { // 30 seconds of inactivity
+                alert("No activity detected! You will be disqualified.");
+                window.location.reload();
+            }
+        }, 5000);
+
+        // Add a dynamic watermark
+        document.body.style.backgroundImage = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"><text x=\"10\" y=\"20\" font-size=\"20\" fill=\"red\" opacity=\"0.3\">Confidential - User ID</text></svg>')";
+
+
+
+
+    });
+
+    // Declare task_id as a global variable
+    let globalTaskId;
+    
+
+    document.getElementById("run-code").addEventListener("click", function() {
+        var language = "{{ question.language }}";
+        if (language === "RISCV"){
+            showToast("RISCV is not supported yet", "error");
+            return;
+        } else {
+            showToast("Running code...", "info");
+            var code = document.querySelector('.CodeMirror').CodeMirror.getValue();
+            var terminal = document.getElementById('output-drop');
+            terminal.innerText = "";  // Clear terminal before starting
+
+            const postUrl = "http://116.213.35.22:8016/rvcodehub/api/submit";
+            const statusUrl = "http://116.213.35.22:8016/rvcodehub/api/status";
+            const data = {
+                "chisel_code": code,
+                "test_case" : `{{ question.test_case|safe }}`,
+                "user_id": "{{ user.id }}",
+                "question_id": "{{ question.id }}",
+                "language_id": "{{ question.language.id }}"
+            };
+            console.log(data);
+
+            var layover_box = document.getElementById("layover-box");
+            console.log(layover_box);
+            layover_box.style.display = "flex";
+
+            sendPostRequest(postUrl, data, function(task_id) {
+                // Assign task_id to the global variable
+                globalTaskId = task_id;
+                console.log("Received Task ID:", globalTaskId);
+                pollTaskStatus(statusUrl, globalTaskId);
+            });
+        }
+        
+    });
+
+    function sendPostRequest(url, data, callback) {
+        fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => callback(result.task_id))
+        .catch(error => console.error("Error:", error));
+    }
+
+    function pollTaskStatus(taskStatusUrl, task_id) {
+        fetch(`${taskStatusUrl}/${task_id}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === "SUCCESS") {
+                    console.log("Task completed!");
+                    console.log(result.result);
+                    var logBox = document.getElementById("output-drop");
+                    var statusBox = document.getElementById("test-status");
+                    var statusMessage = document.getElementById("status-message");
+                    statusBox.style.display = "block";
+                    logBox.innerText = result.result.log.output;
+                    statusMessage.innerText = result.result.log.status;
+                    var layover_box = document.getElementById("layover-box");
+                    layover_box.style.display = "none";
+                } else {
+                    console.log("Task in queue. Queue ID:", result.queue_position);
+                    document.getElementById("queue-id").innerText = `Queue ID: ${result.queue_position}`;
+
+                    // Wait for 2 seconds before polling again
+                    setTimeout(() => {
+                        pollTaskStatus(taskStatusUrl, task_id);  // Recursive call
+                    }, 2000);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+    }
+
+    function showToast(message, type = "info") {
+              const container = document.getElementById("toast-container");
+
+              // Create the toast element
+              const toast = document.createElement("div");
+              toast.classList.add("toast");
+              toast.classList.add(type); // Optional type styling (e.g., success, error)
+              toast.innerText = message;
+
+              // Add the toast to the container
+              container.appendChild(toast);
+
+              // Show the toast with the "show" class
+              setTimeout(() => {
+                  toast.classList.add("show");
+              }, 10);
+
+              // Hide the toast after 5 seconds
+              setTimeout(() => {
+                  toast.classList.remove("show");
+                  toast.classList.add("hide");
+                  // Remove the toast from DOM after the animation
+                  setTimeout(() => {
+                      toast.remove();
+                  }, 300);
+              }, 5000);
+          }
+
+</script>
+</html></div>
+
+
+<script>
+    
+    
+</script>
