@@ -1,12 +1,12 @@
-from django.shortcuts import render
-from .models import QuestionGroup, Question
-from django.http import HttpResponse
+from django.shortcuts import render, redirect
+from .models import QuestionGroup, Question, Contest, Submission
+from django.http import HttpResponse, JsonResponse
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 from django.contrib.auth.decorators import login_required
-
+from icecream import ic
 @login_required
 def questions_groups(request, group_id):
     questions = Question.objects.filter(question_group=group_id)
@@ -18,12 +18,14 @@ def questions_groups(request, group_id):
 
     submissions = Submission.objects.filter(user=request.user, question__question_group=group_id)
     user = request.user
+    contest = Contest.objects.filter(user=user, question_group=group_id).first()
     context = {
         'questions': questions.order_by('id'),
         'languages': language,
         "group": QuestionGroup.objects.get(id=group_id),
         "user": user,
-        "submissions": submissions
+        "submissions": submissions,
+        "contest": contest
     }
     return render(request, 'questions_groups.html', context)
     
@@ -31,9 +33,18 @@ def questions_groups(request, group_id):
 def question(request, question_id):
     question = Question.objects.get(id=question_id)
     user = request.user
+    contest = Contest.objects.filter(user=user, question_group=question.question_group).first()
+
+    try:
+        submission = Submission.objects.filter(user=user, question=question).first()
+        ic(submission.id)
+    except:
+        submission = None
     context = {
         'question': question,
-        'user': user
+        'user': user,
+        'contest': contest,
+        'submission':submission
     }
     return render(request, 'question.html', context)
 
@@ -44,6 +55,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 from datetime import datetime
 from .models import Question, Submission, QuestionGroup
+from datetime import datetime, timedelta
 
 @login_required
 def generate_report(request, group_id):
@@ -127,3 +139,53 @@ def generate_report(request, group_id):
     doc.build(elements)
     buffer.seek(0)
     return HttpResponse(buffer, content_type="application/pdf")
+
+@login_required
+def add_user_to_contest(request, group_id):
+    # Ensure the user is authenticated
+    if not request.user.is_authenticated:
+        return HttpResponse("Unauthorized", status=401)
+
+    # Ensure the group exists
+    group = get_object_or_404(QuestionGroup, id=group_id)
+
+    # Create a new contest instance
+    contest, created = Contest.objects.get_or_create(
+        user=request.user,
+        question_group=group,
+        defaults={
+            'start_time': datetime.now(),
+            'duration': timedelta(minutes=120)
+        }
+    )
+    if created:
+        contest.save()
+    return redirect('questions:q_group', group_id=group_id)
+
+@login_required
+def deduct_time(request, contest_id, time):
+    # Ensure the user is authenticated
+    if not request.user.is_authenticated:
+        return HttpResponse("Unauthorized", status=401)
+
+    # Ensure the contest exists
+    contest = get_object_or_404(Contest, id=contest_id)
+
+    # Deduct 5 minutes from the contest duration
+    contest.duration -= timedelta(minutes=time)
+    contest.save()
+    return JsonResponse({'status': 'success', 'new_duration': contest.duration.total_seconds()})
+
+@login_required
+def increase_time(request, contest_id, time):
+    # Ensure the user is authenticated
+    if not request.user.is_authenticated:
+        return HttpResponse("Unauthorized", status=401)
+
+    # Ensure the contest exists
+    contest = get_object_or_404(Contest, id=contest_id)
+
+    # Increase the contest duration by the specified time
+    contest.duration += timedelta(minutes=time)
+    contest.save()
+    return JsonResponse({'status': 'success', 'new_duration': contest.duration.total_seconds()})
