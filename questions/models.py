@@ -31,3 +31,33 @@ class Submission(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.question.title}"
+
+
+from django.db import models
+from django.contrib.auth.models import User
+from datetime import timedelta
+from django.utils import timezone
+class Contest(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question_group = models.ForeignKey(QuestionGroup, on_delete=models.CASCADE)
+    start_time = models.DateTimeField(null=True, blank=True)
+    duration = models.DurationField(default=timedelta(minutes=60))  # Default 60 minutes
+
+    class Meta:
+        unique_together = ('user', 'question_group')
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.question_group.name}"
+
+    def is_active(self):
+        if self.start_time:
+            end_time = self.start_time + self.duration
+            return self.start_time <= timezone.now() <= end_time
+        return False
+
+    def time_left(self):
+        if self.start_time:
+            end_time = self.start_time + self.duration
+            remaining_time = end_time - timezone.now()
+            return max(timedelta(0), remaining_time)
+        return timedelta(0)
