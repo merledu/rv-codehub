@@ -77,6 +77,25 @@
     <div class="beta-banner">
         This app is in Beta Stage. If you face any issues or bugs, please report them <a href="{% url 'pages:bug_report' %}">here</a>.
     </div>
+    <div id="timer" style="
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background-color: #0288d1;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        z-index: 1001;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    ">
+        <span style="margin-right: 10px;">⏰</span>
+        <span id="timer-text">Time Left: --:--</span>
+    </div>
     <div class="container">
         <h1>{{ group.name }}</h1>
         <h3>Hello, {{ user.username }} <span style="font-size: 14px;"> <i> <a href="{% url 'user_panel:mylogout' %}"> logout </a> </i> </span> </h3>
@@ -91,13 +110,51 @@
             cursor: pointer;
             margin-bottom: 20px;
         ">Generate Report</button>
+
+        <div class="rules-section">
+            <h2>Rules</h2>
+            <ul>
+                <li>No copying or sharing of questions and answers.</li>
+                <li>Tab change and window change will result in a penalty of minus 5 minutes in time.</li>
+                <li>Idle activity for more than 30 seconds will result in a penalty of minus 2 minutes in time.</li>
+                <li>If a screenshot is detected, there will be a penalty of minus 5 minutes in time.</li>
+                <li>Ensure a stable internet connection throughout the test.</li>
+                <li>Do not use any external resources or assistance.</li>
+                <li>Follow the instructions provided for each question.</li>
+            </ul>
+        </div>
+        <style>
+            .rules-section {
+                background-color: #e0f7fa;
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+            }
+            .rules-section h2 {
+                color: #0288d1;
+                margin-bottom: 10px;
+            }
+            .rules-section ul {
+                list-style-type: disc;
+                padding-left: 20px;
+            }
+            .rules-section li {
+                margin-bottom: 10px;
+                color: #0474b1;
+            }
+            .rules-section li:hover {
+                cursor: default;
+                background-color: white;
+            }
+        </style>
+
         {% for language in languages %}
             <h2>{{ language }}</h2>
             <ul>
             {% for question in questions %}
                 {% if question.language == language %}
 
-                <li onclick="window.location.href = '{% url 'questions:question' question_id=question.id %}'">
+                <li onclick="TakeMeToQuestion('{% url 'questions:question' question_id=question.id %}')">
                     {{ forloop.counter }}. {{ question.title }}
                     {% for submission in submissions %}
                             {% if submission.question.id == question.id %}
@@ -161,43 +218,191 @@
 
 <script>
 
-document.addEventListener("DOMContentLoaded", function() {
+    function TakeMeToQuestion(question_url) {
+        // fetch("{% url 'questions:increase_time' contest_id=contest.id time=5 %}")
+        // .then(response => {
+        //     if (!response.ok) {
+        //         throw new Error('Network response was not ok');
+        //     }
+        //     return response.json();
+        // })
+        // .then(data => {
+        //     console.log('Time increased:', data);
+        // })
+        // .catch(error => {
+        //     console.error('Error deducting time:', error);
+        // });
+        // updateTimer();
+
+        console.log(REMAININ_TIME);
+
+        if (REMAININ_TIME === "00:00:00") {
+            showToast("Time is up! You cannot access the question.", "error");
+            return;
+        } else {
+            window.location.href = question_url;
+        }
+    }
+
+    let REMAININ_TIME;
+
+    function updateTimer() {
+        fetch('http://116.213.35.22:8016/rvcodehub/api/contest/{{ contest.id }}/remaining_time')
+            .then(response => response.json())
+            .then(data => {
+                REMAININ_TIME = data.remaining_time;
+                document.getElementById('timer-text').innerText = `Time Left: ${data.remaining_time}`;
+            })
+            .catch(error => console.error('Error fetching timer:', error));
+    }
+
+    setInterval(updateTimer, 5000); // Update timer every 5 seconds
+    updateTimer(); // Initial call to set the timer immediately
+
+    document.addEventListener("DOMContentLoaded", function() {
         // Disable copying on the entire document
         document.addEventListener("copy", function(event) {
             event.preventDefault();
             showToast("Copying is not allowed on this page", "error");
         });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'PrintScreen') {
+                showToast("Screenshots are disabled!", "error");
+                event.preventDefault();
+            }
+            if (event.ctrlKey && event.key === 'p') {
+                showToast("Printing is disabled!", "error");
+                event.preventDefault();
+            }
+            if (event.ctrlKey && event.shiftKey && event.key === 'I') {
+                showToast("Inspect Element is disabled!", "error");
+                event.preventDefault();
+            }
+            if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+                showToast("Inspect Element is disabled!", "error");
+                event.preventDefault();
+            }
+        });
+        document.addEventListener('contextmenu', function (event) {
+            event.preventDefault();
+            showToast("Right-click is disabled!", "error");
+        });
+            
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                showToast("Tab switching is not allowed!", "error");
+                // fetch("{% url 'questions:deduct_time' contest_id=contest.id time=5 %}")
+                //     .then(response => {
+                //         if (!response.ok) {
+                //             throw new Error('Network response was not ok');
+                //         }
+                //         return response.json();
+                //     })
+                //     .then(data => {
+                //         console.log('Time deducted:', data);
+                //     })
+                //     .catch(error => {
+                //         console.error('Error deducting time:', error);
+                //     });
+                // updateTimer();
+            }
+        });
+
+        document.addEventListener('blur', function(event) {
+            showToast("Switching windows is not allowed!", "error");
+            // fetch("{% url 'questions:deduct_time' contest_id=contest.id time=5 %}")
+            //     .then(response => {
+            //         if (!response.ok) {
+            //             throw new Error('Network response was not ok');
+            //         }
+            //         return response.json();
+            //     })
+            //     .then(data => {
+            //         console.log('Time deducted:', data);
+            //     })
+            //     .catch(error => {
+            //         console.error('Error deducting time:', error);
+            //     });
+            event.preventDefault();
+        });
+
+        // function enterFullscreen() {
+        //     const elem = document.documentElement;
+        //     if (elem.requestFullscreen) {
+        //         elem.requestFullscreen();
+        //     } else if (elem.mozRequestFullScreen) { // Firefox
+        //         elem.mozRequestFullScreen();
+        //     } else if (elem.webkitRequestFullscreen) { // Chrome, Safari, and Opera
+        //         elem.webkitRequestFullscreen();
+        //     } else if (elem.msRequestFullscreen) { // IE/Edge
+        //         elem.msRequestFullscreen();
+        //     }
+        // }
+
+        // function detectFullscreenExit() {
+        //     document.addEventListener("fullscreenchange", function () {
+        //         if (!document.fullscreenElement) {
+        //             showToast("Exiting fullscreen is not allowed!", "error");
+        //             enterFullscreen();
+        //         }
+        //     });
+        // }
+
+        // enterFullscreen();
+        // detectFullscreenExit();
+
+        let lastActivity = Date.now();
+
+        document.addEventListener('mousemove', function () {
+            lastActivity = Date.now();
+        });
+
+        setInterval(function () {
+            if (Date.now() - lastActivity > 30000) { // 30 seconds of inactivity
+                showToast("No activity detected! You may be disqualified", "error");
+            }
+            // fetch("{% url 'questions:deduct_time' contest_id=contest.id time=5 %}")
+            //     .then(response => {
+            //         if (!response.ok) {
+            //             throw new Error('Network response was not ok');
+            //         }
+            //         return response.json();
+            //     })
+            //     .then(data => {
+            //         console.log('Time deducted:', data);
+            //     })
+            //     .catch(error => {
+            //         console.error('Error deducting time:', error);
+            //     });
+        }, 5000);
     });
 
-
     function showToast(message, type = "info") {
-              const container = document.getElementById("toast-container");
+        const container = document.getElementById("toast-container");
 
-              // Create the toast element
-              const toast = document.createElement("div");
-              toast.classList.add("toast");
-              toast.classList.add(type); // Optional type styling (e.g., success, error)
-              toast.innerText = message;
+        // Create the toast element
+        const toast = document.createElement("div");
+        toast.classList.add("toast");
+        toast.classList.add(type); // Optional type styling (e.g., success, error)
+        toast.innerText = message;
 
-              // Add the toast to the container
-              container.appendChild(toast);
+        // Add the toast to the container
+        container.appendChild(toast);
 
-              // Show the toast with the "show" class
-              setTimeout(() => {
-                  toast.classList.add("show");
-              }, 10);
+        // Show the toast with the "show" class
+        setTimeout(() => {
+            toast.classList.add("show");
+        }, 10);
 
-              // Hide the toast after 5 seconds
-              setTimeout(() => {
-                  toast.classList.remove("show");
-                  toast.classList.add("hide");
-                  // Remove the toast from DOM after the animation
-                  setTimeout(() => {
-                      toast.remove();
-                  }, 300);
-              }, 5000);
-          }
-
-
+        // Hide the toast after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove("show");
+            toast.classList.add("hide");
+            // Remove the toast from DOM after the animation
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 5000);
+    }
 </script>
 </html>

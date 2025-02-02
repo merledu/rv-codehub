@@ -102,7 +102,7 @@
         <h1 class="text-center mb-4">Upcoming Coding Challenges</h1>
         <ul class="list-group">
             {% for category in question_groups %}
-                <li data-url="{% url 'questions:q_group' group_id=category.id %}" class="list-group-item">{{ category }}</li>
+                <li data-url="{% url 'questions:add_user_to_contest' group_id=category.id %}" class="list-group-item">{{ category }}</li>
             {% endfor %}
         </ul>
     </div>
@@ -122,7 +122,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p>By clicking "Yes", you will commence the coding challenge. The allotted time for this challenge is 60 minutes, and you will not be able to pause or restart. Are you sure you want to proceed?</p>
+                <p>By clicking "Yes", you will commence the coding challenge. The allotted time for this challenge is 120 minutes, and you will not be able to pause or restart. Are you sure you want to proceed?</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>

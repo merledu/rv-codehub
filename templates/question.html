@@ -125,6 +125,25 @@
     <div class="beta-banner">
         This app is in Beta Stage. If you face any issues or bugs, please report them <a href="{% url 'pages:bug_report' %}">here</a>.
     </div>
+    <div id="timer" style="
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background-color: #0288d1;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        z-index: 1001;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    ">
+        <span style="margin-right: 10px;">⏰</span>
+        <span id="timer-text">Time Left: --:--</span>
+    </div>
     <div id="layover-box" class="process-div">
         <div>
           <h1>Your Task is in Queue</h1>
@@ -133,6 +152,9 @@
         
     </div>
     <div class="pane left-pane">
+        <button onclick="window.location.href = '{% url 'questions:add_user_to_contest' group_id=contest.question_group.id %}'" style="margin-top: 20px; background-color: #0288d1; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+            <img src="{% static 'img/back_icon.png' %}" style="width: 20px; height: 20px;">
+        </button>
         <h4>Coding Question</h4>
         <h2>{{ question.title }}</h2>
         <div style="display: inline-block; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9; margin-bottom: 20px;">
@@ -150,7 +172,7 @@
         {% endif %}
         
         
-        <textarea class="code-editor" placeholder="Write your code here...">{{ question.answer_template }}</textarea>
+        <textarea class="code-editor" placeholder="Write your code here...">{% if submission == None %} {{ question.answer_template }}  {% else %} {{ submission.code }} {% endif %}</textarea>
         <br>
         <button id="run-code">Run Code</button>
         <br> <br>
@@ -207,137 +229,247 @@
 <script src="{% static 'codemirror/codemirror-5.65.0/mode/clike/clike.js' %}"></script>
 <script src="{% static 'codemirror/codemirror-5.65.0/addon/display/autorefresh.js' %}"></script>
 <script src="{% static 'codemirror/codemirror-5.65.0/addon/edit/matchbrackets.js' %}"></script>
-
 <script>
-    
-
-    // document.addEventListener("DOMContentLoaded", function() {
-    //     var editor = CodeMirror.fromTextArea(document.querySelector(".code-editor"), {
-    //         lineNumbers: true,
-    //         mode: "text/x-scala",
-    //         theme: "eclipse",
-    //         matchBrackets: true,
-    //     });
+function FirstUpdate(){
+    // fetch("{% url 'questions:increase_time' contest_id=contest.id time=5 %}")
+    // .then(response => {
+    //     if (!response.ok) {
+    //         throw new Error('Network response was not ok');
+    //     }
+    //     return response.json();
+    // })
+    // .then(data => {
+    //     console.log('Time increased:', data);
+    //     updateTimer(); // Initial call to set the timer immediately
+    // })
+    // .catch(error => {
+    //     console.error('Error deducting time:', error);
     // });
+    
+}
 
-    // Restrict pasting in the code editor
-    document.addEventListener("DOMContentLoaded", function() {
-        var editor = CodeMirror.fromTextArea(document.querySelector(".code-editor"), {
-            lineNumbers: true,
+function shouldWeGoBack(){
+    console.log(REMAININ_TIME);
+    if (REMAININ_TIME === "00:00:00"){
+        window.location.href = "{% url 'questions:add_user_to_contest' group_id=contest.question_group.id %}";
+    }
+}
+
+let REMAININ_TIME;
+
+function updateTimer() {
+    fetch('http://116.213.35.22:8016/rvcodehub/api/contest/{{ contest.id }}/remaining_time')
+        .then(response => response.json())
+        .then(data => {
+            REMAININ_TIME = data.remaining_time;
+            document.getElementById('timer-text').innerText = `Time Left: ${data.remaining_time}`;
+            shouldWeGoBack();
+        })
+        .catch(error => console.error('Error fetching timer:', error));
+}
+
+setInterval(updateTimer, 5000); // Update timer every 5 seconds
+// FirstUpdate();
+updateTimer();
+
+document.addEventListener("DOMContentLoaded", function() {
+    var editor = CodeMirror.fromTextArea(document.querySelector(".code-editor"), {
+        lineNumbers: true,
+        theme: "eclipse",
+
+        {% if question.language.name == "RISCV" %}
+            mode: {name: "gas", architecture: "RISCV"},
+        {% elif question.language.name == "CHISEL" %}
             mode: "text/x-scala",
-            theme: "eclipse",
-            matchBrackets: true,
-        });
 
-        // Disable pasting in the CodeMirror editor
-        editor.on("paste", function(cm, event) {
-            event.preventDefault();
-            showToast("Pasting is not allowed in the code editor", "error");
-        });
+        {% endif %}
+        matchBrackets: true,
     });
 
-    document.addEventListener("DOMContentLoaded", function() {
-        // Disable copying on the entire document
-        document.addEventListener("copy", function(event) {
+    // Disable pasting in the CodeMirror editor
+    editor.on("paste", function(cm, event) {
+        event.preventDefault();
+        showToast("Pasting is not allowed in the code editor", "error");
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Disable copying on the entire document
+    document.addEventListener("copy", function(event) {
+        event.preventDefault();///
+        showToast("Copying is not allowed on this page", "error");
+    });
+    document.addEventListener("cut", function(event) {
+        event.preventDefault();
+        showToast("Copying is not allowed on this page", "error");
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'PrintScreen') {
+            showToast("Screenshots are disabled!", "error");
             event.preventDefault();
-            showToast("Copying is not allowed on this page", "error");
-        });
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'PrintScreen') {
-                showToast("Screenshots are disabled!", "error");
-                event.preventDefault();
-            }
-            if (event.ctrlKey && event.key === 'p') {
-                showToast("Printing is disabled!", "error");
-                event.preventDefault();
-            }
-            if (event.ctrlKey && event.shiftKey && event.key === 'I') {
+            showBlankScreen();
+        }
+        if (event.ctrlKey && event.key === 'p') {
+            showToast("Printing is disabled!", "error");
+            event.preventDefault();
+        }
+        if (event.ctrlKey && event.shiftKey && event.key === 'I') {
                 showToast("Inspect Element is disabled!", "error");
                 event.preventDefault();
-            }
-
-        });
-        document.addEventListener('contextmenu', function (event) {
-                event.preventDefault();
-                showToast("Right-click is disabled!", "error");
-            });
-            
-        document.addEventListener('visibilitychange', function () {
-            if (document.hidden) {
-                alert("Tab switching is not allowed!");
-                window.location.reload(); // Optional: Force reload or disqualify the participant
-            }
-        });
-
-        document.addEventListener('blur', function(event) {
-            alert("Switching windows is not allowed!");
-            window.location.reload();
+        }
+        if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+            showToast("Inspect Element is disabled!", "error");
             event.preventDefault();
-        });
-
-        function enterFullscreen() {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.mozRequestFullScreen) { // Firefox
-                elem.mozRequestFullScreen();
-            } else if (elem.webkitRequestFullscreen) { // Chrome, Safari, and Opera
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { // IE/Edge
-                elem.msRequestFullscreen();
-            }
         }
-
-        function detectFullscreenExit() {
-            document.addEventListener("fullscreenchange", function () {
-                if (!document.fullscreenElement) {
-                    alert("Exiting fullscreen is not allowed!");
-                    enterFullscreen();
-                }
-            });
-        }
-
-        enterFullscreen();
-        detectFullscreenExit();
-
-        let lastActivity = Date.now();
-
-        document.addEventListener('mousemove', function () {
-            lastActivity = Date.now();
+});
+    document.addEventListener('contextmenu', function (event) {
+            event.preventDefault();
+            showToast("Right-click is disabled!", "error");
         });
-
-        setInterval(function () {
-            if (Date.now() - lastActivity > 30000) { // 30 seconds of inactivity
-                alert("No activity detected! You will be disqualified.");
-                window.location.reload();
-            }
-        }, 5000);
-
-        // Add a dynamic watermark
-        document.body.style.backgroundImage = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"><text x=\"10\" y=\"20\" font-size=\"20\" fill=\"red\" opacity=\"0.3\">Confidential - User ID</text></svg>')";
-
-
-
-
-    });
-
-    // Declare task_id as a global variable
-    let globalTaskId;
     
 
-    document.getElementById("run-code").addEventListener("click", function() {
-        var language = "{{ question.language }}";
-        if (language === "RISCV"){
-            showToast("RISCV is not supported yet", "error");
-            return;
+    // document.addEventListener('visibilitychange', function () {
+    //     if (document.hidden) {
+    //         showToast("Tab switching is not allowed!", "error");
+    //         fetch("{% url 'questions:deduct_time' contest_id=contest.id time=5 %}")
+    //         .then(response => {
+    //             if (!response.ok) {
+    //                 throw new Error('Network response was not ok');
+    //             }
+    //             return response.json();
+    //         })
+    //         .then(data => {
+    //             console.log('Time increased:', data);
+    //             updateTimer(); // Initial call to set the timer immediately
+    //         })
+    //         .catch(error => {
+    //             console.error('Error deducting time:', error);
+    //         });
+    //     }
+    // });
+
+    document.addEventListener('blur', function(event) {
+        showToast("Switching windows is not allowed! -5 minutes", "error");
+        fetch("{% url 'questions:deduct_time' contest_id=contest.id time=5 %}")
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Time increased:', data);
+                updateTimer(); // Initial call to set the timer immediately
+            })
+            .catch(error => {
+                console.error('Error deducting time:', error);
+            });
+            event.preventDefault();
+    });
+
+    let lastActivity = Date.now();
+
+    document.addEventListener('mousemove', function () {
+        lastActivity = Date.now();
+    });
+
+    let inactivityWarnings = 0;
+
+    setInterval(function () {
+        if (Date.now() - lastActivity > 30000) { // 30 seconds of inactivity
+            inactivityWarnings++;
+            if (inactivityWarnings <= 5) {
+                showToast(`No activity detected! Warning ${inactivityWarnings}/5`, "error");
+            } else {
+                showToast("No activity detected! -2 minutes", "error");
+                fetch("{% url 'questions:deduct_time' contest_id=contest.id time=2 %}")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Time updated:', data);
+                    updateTimer(); // Initial call to set the timer immediately
+                })
+                .catch(error => {
+                    console.error('Error deducting time:', error);
+                });
+                inactivityWarnings = 0; // Reset the warnings count after deduction
+            }
         } else {
+            inactivityWarnings = 0; // Reset the warnings count if activity is detected
+        }
+    }, 5000);
+
+    // Add a dynamic watermark
+    document.body.style.backgroundImage = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"><text x=\"10\" y=\"20\" font-size=\"20\" fill=\"red\" opacity=\"0.3\">Confidential - User ID</text></svg>')";
+});
+
+function showBlankScreen() {
+    var blankScreen = document.createElement("div");
+    blankScreen.style.position = "fixed";
+    blankScreen.style.top = "0";
+    blankScreen.style.left = "0";
+    blankScreen.style.width = "100%";
+    blankScreen.style.height = "100%";
+    blankScreen.style.backgroundColor = "white";
+    blankScreen.style.zIndex = "9999";
+    document.body.appendChild(blankScreen);
+
+    setTimeout(function() {
+        document.body.removeChild(blankScreen);
+    }, 1000); // Remove the blank screen after 1 second
+}
+
+// Declare task_id as a global variable
+let globalTaskId;
+let globalTrigger = false;
+
+document.getElementById("run-code").addEventListener("click", function() {
+    if(globalTrigger){
+        showToast("Wait for the current process to finish!")
+    } else {
+        globalTrigger = true;
+        var language = "{{ question.language.name }}";
+        if (language === "RISCV"){
+            // showToast("RISCV is not supported yet", "error");
             showToast("Running code...", "info");
             var code = document.querySelector('.CodeMirror').CodeMirror.getValue();
             var terminal = document.getElementById('output-drop');
             terminal.innerText = "";  // Clear terminal before starting
 
-            const postUrl = "http://116.213.35.22:8016/rvcodehub/api/submit";
-            const statusUrl = "http://116.213.35.22:8016/rvcodehub/api/status";
+            const postUrl = "http://116.213.35.22:8016/rvcodehub/api/run_rvv";
+            const statusUrl = "http://116.213.35.22:8016/rvcodehub/api/run_rvv/status";
+            const data = {
+                "code": code,
+                "test_case" : {% if question.language.name == 'RISCV' %} {{ question.test_case | safe }} {% else %} `{{ question.test_case | safe }}` {% endif %},
+                "user_id": "{{ user.id }}",
+                "question_id": "{{ question.id }}",
+                "language_id": "{{ question.language.id }}"
+            };
+            console.log(data);
+
+            var layover_box = document.getElementById("layover-box");
+            console.log(layover_box);
+            layover_box.style.display = "flex";
+
+            sendPostRequest(postUrl, data, function(task_id) {
+                // Assign task_id to the global variable
+                globalTaskId = task_id;
+                console.log("Received Task ID:", globalTaskId);
+                pollTaskStatus(statusUrl, globalTaskId);
+            });
+            // return;
+        } else if (language === "CHISEL") {
+            showToast("Running code...", "info");
+            var code = document.querySelector('.CodeMirror').CodeMirror.getValue();
+            var terminal = document.getElementById('output-drop');
+            terminal.innerText = "";  // Clear terminal before starting
+
+            const postUrl = "http://116.213.35.22:8016/rvcodehub/api/run_sbt";
+            const statusUrl = "http://116.213.35.22:8016/rvcodehub/api/run_sbt/status";
             const data = {
                 "chisel_code": code,
                 "test_case" : `{{ question.test_case|safe }}`,
@@ -358,78 +490,86 @@
                 pollTaskStatus(statusUrl, globalTaskId);
             });
         }
-        
-    });
-
-    function sendPostRequest(url, data, callback) {
-        fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(result => callback(result.task_id))
-        .catch(error => console.error("Error:", error));
     }
+});
 
-    function pollTaskStatus(taskStatusUrl, task_id) {
-        fetch(`${taskStatusUrl}/${task_id}`)
-            .then(response => response.json())
-            .then(result => {
-                if (result.status === "SUCCESS") {
-                    console.log("Task completed!");
-                    console.log(result.result);
+function sendPostRequest(url, data, callback) {
+    fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => callback(result.task_id))
+    .catch(error => console.error("Error:", error));
+}
+
+function pollTaskStatus(taskStatusUrl, task_id) {
+    fetch(`${taskStatusUrl}/${task_id}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === "SUCCESS") {
+                globalTrigger = false;
+                console.log("Task completed!");
+                console.log(result.result);
+                var logBox = document.getElementById("output-drop");
+                var statusBox = document.getElementById("test-status");
+                var statusMessage = document.getElementById("status-message");
+                statusBox.style.display = "block";
+                logBox.innerText = result.result.log.output;
+                statusMessage.innerText = result.result.log.status;
+                var layover_box = document.getElementById("layover-box");
+                layover_box.style.display = "none";
+            } else {
+                console.log("Task in queue. Queue ID:", result.queue_position);
+                if(result.queue_position === "In Progress"){
                     var logBox = document.getElementById("output-drop");
-                    var statusBox = document.getElementById("test-status");
-                    var statusMessage = document.getElementById("status-message");
-                    statusBox.style.display = "block";
-                    logBox.innerText = result.result.log.output;
-                    statusMessage.innerText = result.result.log.status;
+                    logBox.innerText = result.logList;
                     var layover_box = document.getElementById("layover-box");
                     layover_box.style.display = "none";
                 } else {
-                    console.log("Task in queue. Queue ID:", result.queue_position);
                     document.getElementById("queue-id").innerText = `Queue ID: ${result.queue_position}`;
-
-                    // Wait for 2 seconds before polling again
-                    setTimeout(() => {
-                        pollTaskStatus(taskStatusUrl, task_id);  // Recursive call
-                    }, 2000);
                 }
-            })
-            .catch(error => console.error("Error:", error));
-    }
+                
 
-    function showToast(message, type = "info") {
-              const container = document.getElementById("toast-container");
+                // Wait for 2 seconds before polling again
+                setTimeout(() => {
+                    pollTaskStatus(taskStatusUrl, task_id);  // Recursive call
+                }, 2000);
+            }
+        })
+        .catch(error => console.error("Error:", error));
+}
 
-              // Create the toast element
-              const toast = document.createElement("div");
-              toast.classList.add("toast");
-              toast.classList.add(type); // Optional type styling (e.g., success, error)
-              toast.innerText = message;
+function showToast(message, type = "info") {
+    const container = document.getElementById("toast-container");
 
-              // Add the toast to the container
-              container.appendChild(toast);
+    // Create the toast element
+    const toast = document.createElement("div");
+    toast.classList.add("toast");
+    toast.classList.add(type); // Optional type styling (e.g., success, error)
+    toast.innerText = message;
 
-              // Show the toast with the "show" class
-              setTimeout(() => {
-                  toast.classList.add("show");
-              }, 10);
+    // Add the toast to the container
+    container.appendChild(toast);
 
-              // Hide the toast after 5 seconds
-              setTimeout(() => {
-                  toast.classList.remove("show");
-                  toast.classList.add("hide");
-                  // Remove the toast from DOM after the animation
-                  setTimeout(() => {
-                      toast.remove();
-                  }, 300);
-              }, 5000);
-          }
+    // Show the toast with the "show" class
+    setTimeout(() => {
+        toast.classList.add("show");
+    }, 10);
 
+    // Hide the toast after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove("show");
+        toast.classList.add("hide");
+        // Remove the toast from DOM after the animation
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 5000);
+}
 </script>
 </html></div>
 
